@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <!-- Example container structure -->
+    <div class="container">
+      <ul class="listed-tasks">
+        <li>
+          <span class="task-content">Task 1</span>
+          <button class="delete-btn">Delete</button>
+        </li>
+        <!-- More list items -->
+      </ul>
+    </div>
+    <div class="container">
+      <ul class="listed-tasks">
+        <li>
+          <span class="task-content">Task 1</span>
+          <button class="delete-btn">Delete</button>
+        </li>
+        <!-- More list items -->
+      </ul>
+    </div>
+    <div class="container">
+      <ul class="listed-tasks">
+        <li>
+          <span class="task-content">Task 1</span>
+          <button class="delete-btn">Delete</button>
+        </li>
+        <!-- More list items -->
+      </ul>
+    </div>
+    v
+
+    <!-- Popup should be outside all containers -->
+    <div class="popup-container">
+      <button class="popup-confirm-delete">Confirm Delete?</button>
+    </div>
+    <script>
+      // Store references to the elements we'll manipulate
+      const PopUpcontainer = document.querySelector(".popup-container");
+      const confirmBtn = document.querySelector(".popup-confirm-delete");
+      let currentLiToDelete = null;
+
+      // Add click event to ALL delete buttons
+      document.querySelectorAll(".delete-btn").forEach((deleteBtn) => {
+        deleteBtn.addEventListener("click", function () {
+          // Find the specific list item and container for THIS button
+          currentLiToDelete = this.closest("li"); // Get parent LI of clicked button
+          const parentUL = currentLiToDelete.closest("ul"); // Get the UL container
+
+          // Only show popup if parent UL has the correct class
+          if (parentUL.classList.contains("listed-tasks")) {
+            PopUpcontainer.classList.add("active");
+          }
+        });
+      });
+
+      // Handle confirmation click
+      confirmBtn.addEventListener("click", () => {
+        if (currentLiToDelete) {
+          const parentUL = currentLiToDelete.closest("ul");
+
+          // Remove the list item from DOM
+          parentUL.removeChild(currentLiToDelete);
+
+          // Update your tasks array (modify this based on your data structure)
+          const taskText =
+            currentLiToDelete.querySelector(".task-content").textContent;
+          tasks = tasks.filter((t) => t !== taskText);
+
+          // Update localStorage and reset
+          TaskToLocalStorage();
+          PopUpcontainer.classList.remove("active");
+          currentLiToDelete = null;
+        }
+      });
+    </script>
+  </body>
+</html>
