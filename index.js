@@ -1,312 +1,341 @@
-// Hamburger menu toggle
+// DOM Elements
 const humburgerBtn = document.querySelector(".humburger-button");
 const humburgerBtnClose = document.querySelector(".humburger-menu-close");
-let dasboard = document.querySelector(".dashboard");
-let container = document.querySelectorAll(".container");
-let completedContainer = document.querySelector(".completed-task");
-
-// Modal elements for delete confirmation
+const dashboard = document.querySelector(".dashboard");
+const containers = document.querySelectorAll(".container");
+const completedContainer = document.querySelector(".completed-task");
 const modal = document.getElementById("deleteModal");
 const modalCloseBtn = modal.querySelector(".modal-close");
 const btnCancel = modal.querySelector(".btn-cancel");
 const btnConfirm = modal.querySelector(".btn-confirm");
-
-let addTaskBtn = document.querySelectorAll(".addTask");
-let ul = document.querySelectorAll(".listed-task");
-const homeUl = ul[0];
-let userInput = document.querySelectorAll(".userInput");
-
-console.log(container);
-
-humburgerBtn.addEventListener("click", () => {
-  dasboard.classList.toggle("active");
-});
-
-humburgerBtnClose.addEventListener("click", () => {
-  dasboard.classList.remove("active");
-});
-
-// Save tasks to localStorage
-function TaskToLocalStorage(index, tasks) {
-  localStorage.setItem(`tasks-${index}`, JSON.stringify(tasks));
-}
-
-function checkIfListEmpty(ulElement) {
-  if (ulElement.children.length === 0) {
-    const emptyMessage = document.createElement("div");
-    emptyMessage.textContent = "Add task";
-    emptyMessage.classList.add("empty-message");
-    ulElement.appendChild(emptyMessage);
-  } else {
-    const emptyMessage = ulElement.querySelector(".empty-message");
-    if (emptyMessage) emptyMessage.remove();
-  }
-}
-
-// Create task element
-function createTaskElement(taskObject, index, currentul) {
-  let li = document.createElement("li");
-  li.classList.add("listed-list-li");
-
-  let checkbox = document.createElement("input");
-  checkbox.type = "checkbox";
-
-  let DeleteBtn = document.createElement("button");
-  DeleteBtn.textContent = "delete";
-
-  let textnode = document.createTextNode(taskObject.text);
-
-  let timerContainer = document.createElement("div");
-  timerContainer.classList.add("styleClock");
-  let timerInput = document.createElement("input");
-  let timerclock = document.createElement("span");
-
-  timerInput.type = "datetime-local"; // Fixed input type
-  timerclock.textContent = "⏳ Timer not set";
-
-  // Restore previous timer value if exists
-  if (taskObject.timer) {
-    timerInput.value = taskObject.timer;
-  }
-
-  let intervalId = null; // To track interval per task
-
-  // Countdown update function
-  function updateCountdown() {
-    let targetTime = new Date(timerInput.value).getTime();
-    if (isNaN(targetTime)) {
-      timerclock.textContent = "⏳ Timer not set";
-      timerclock.style.color = "";
-      return;
-    }
-    let now = new Date().getTime();
-    let distance = targetTime - now;
-
-    if (distance <= 0) {
-      clearInterval(intervalId);
-      intervalId = null;
-      timerclock.textContent = "⏰ Time's up!";
-      timerclock.style.color = "red";
-    } else {
-      let days = Math.floor(distance / (1000 * 60 * 60 * 24));
-      let hours = Math.floor(
-        (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
-      );
-      let minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-      let seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-      timerclock.textContent = `${days}d ${hours}h ${minutes}m ${seconds}s`;
-      timerclock.style.color = "";
-    }
-  }
-
-  // If timer is already set on load, start interval
-  if (timerInput.value) {
-    updateCountdown();
-    intervalId = setInterval(updateCountdown, 1000);
-  }
-
-  // Countdown logic on change
-  timerInput.addEventListener("change", () => {
-    // Clear previous interval if any
-    if (intervalId) clearInterval(intervalId);
-
-    if (!timerInput.value) {
-      timerclock.textContent = "⏳ Timer not set";
-      timerclock.style.color = "";
-      // Remove timer from taskObject and update localStorage
-      taskObject.timer = null;
-      updateTaskInLocalStorage(index, taskObject);
-      return;
-    }
-
-    // Save timer value to taskObject and localStorage
-    taskObject.timer = timerInput.value;
-    updateTaskInLocalStorage(index, taskObject);
-
-    // Start new interval
-    updateCountdown();
-    intervalId = setInterval(updateCountdown, 1000);
-  });
-
-  timerContainer.appendChild(timerInput);
-  timerContainer.appendChild(timerclock);
-  li.appendChild(checkbox);
-  li.appendChild(textnode);
-  li.appendChild(DeleteBtn);
-  li.appendChild(timerContainer);
-
-  // Checkbox logic
-  checkbox.addEventListener("change", () => {
-    taskObject.completed = checkbox.checked;
-    if (checkbox.checked) {
-      showToast("Task completed!");
-      completedContainer.append(li);
-      li.style.textDecoration = "line-through";
-      DeleteBtn.style.textDecoration = "line-through";
-    } else {
-      li.style.textDecoration = "none";
-      DeleteBtn.style.textDecoration = "none";
-    }
-    updateTaskInLocalStorage(index, taskObject);
-  });
-
-  // Delete button logic with modal
-  DeleteBtn.addEventListener("click", () => {
-    modal.style.display = "block";
-
-    btnCancel.onclick = () => {
-      modal.style.display = "none";
-    };
-
-    modalCloseBtn.onclick = () => {
-      modal.style.display = "none";
-    };
-
-    btnConfirm.onclick = () => {
-      currentul.removeChild(li);
-
-      // Update localStorage: remove task
-      let tasks = JSON.parse(localStorage.getItem(`tasks-${index}`)) || [];
-      tasks = tasks.filter((t) => t.text !== taskObject.text);
-      TaskToLocalStorage(index, tasks);
-
-      modal.style.display = "none"; // Hide modal
-      checkIfListEmpty(currentul);
-
-      // Clear interval if any
-      if (intervalId) clearInterval(intervalId);
-    };
-  });
-
-  return li;
-}
-
-// Helper function to update a single task in localStorage
-function updateTaskInLocalStorage(index, updatedTask) {
-  let tasks = JSON.parse(localStorage.getItem(`tasks-${index}`)) || [];
-  tasks = tasks.map((t) => (t.text === updatedTask.text ? updatedTask : t));
-  TaskToLocalStorage(index, tasks);
-}
-
-// Task render logic
-function renderTask() {
-  addTaskBtn.forEach((button, index) => {
-    button.addEventListener("click", () => {
-      let currentul = ul[index];
-      let userInputValue = userInput[index].value;
-
-      if (userInputValue.trim() === "") {
-        showToast("Please enter a task!");
-        return;
-      }
-
-      let tasks = JSON.parse(localStorage.getItem(`tasks-${index}`)) || [];
-      let taskObject = { text: userInputValue, completed: false, timer: null };
-      tasks.push(taskObject);
-      TaskToLocalStorage(index, tasks);
-
-      let li = createTaskElement(taskObject, index, currentul);
-      currentul.appendChild(li);
-
-      checkIfListEmpty(currentul);
-
-      // Clear input field after task added
-      userInput[index].value = "";
-    });
-  });
-}
-
+const addTaskBtns = document.querySelectorAll(".addTask");
+const taskLists = document.querySelectorAll(".listed-task");
+const homeTaskList = taskLists[0];
+const userInputs = document.querySelectorAll(".userInput");
 const searchInput = document.getElementById("taskSearch");
 const searchResults = document.getElementById("searchResults");
 
-// Function to search tasks in localStorage and show results
-function searchTasks(query) {
-  searchResults.innerHTML = ""; // clear previous results
-  if (query.trim() === "") return; // if empty, do nothing
+// State variables
+let taskToDelete = null;
+let currentListIndex = null;
 
-  // Loop over all task lists in localStorage
-  ul.forEach((_, index) => {
-    let tasks = JSON.parse(localStorage.getItem(`tasks-${index}`)) || [];
-    tasks.forEach((task) => {
-      if (task.text.toLowerCase().includes(query.toLowerCase())) {
-        // Create a list item for matched task
-        let li = document.createElement("li");
-        li.textContent = `List ${index + 1}: ${task.text}`;
-        if (task.completed) {
-          li.style.textDecoration = "line-through";
-          li.style.color = "gray";
-        }
-        searchResults.appendChild(li);
-      }
-    });
-  });
+// Initialize the app
+function init() {
+    setupEventListeners();
+    loadTasks();
+    checkAllListsEmpty();
 }
 
-// Add input event listener for search input
-searchInput.addEventListener("input", (e) => {
-  searchTasks(e.target.value);
-});
+// Set up event listeners
+function setupEventListeners() {
+    // Hamburger menu toggle
+    humburgerBtn.addEventListener("click", toggleDashboard);
+    humburgerBtnClose.addEventListener("click", toggleDashboard);
+    
+    // Add task buttons
+    addTaskBtns.forEach((button, index) => {
+        button.addEventListener("click", () => addTask(index));
+        userInputs[index].addEventListener("keypress", (e) => {
+            if (e.key === "Enter") addTask(index);
+        });
+    });
+    
+    // Modal buttons
+    btnCancel.addEventListener("click", closeModal);
+    modalCloseBtn.addEventListener("click", closeModal);
+    btnConfirm.addEventListener("click", confirmDelete);
+    window.addEventListener("click", (event) => {
+        if (event.target === modal) closeModal();
+    });
+    
+    // Search functionality
+    searchInput.addEventListener("input", handleSearch);
+}
 
-// Load tasks from localStorage and render them
-function loadTasks() {
-  ul.forEach((currentul, index) => {
-    let tasks = JSON.parse(localStorage.getItem(`tasks-${index}`)) || [];
-    tasks.forEach((task) => {
-      let li = createTaskElement(task, index, currentul);
-      let checkbox = li.querySelector("input[type='checkbox']");
-      if (task.completed) {
-        checkbox.checked = true;
+// Toggle dashboard visibility
+function toggleDashboard() {
+    dashboard.classList.toggle("active");
+}
+
+// Add a new task
+function addTask(index) {
+    const input = userInputs[index];
+    const taskText = input.value.trim();
+    
+    if (!taskText) {
+        showToast("Please enter a task!");
+        return;
+    }
+    
+    const tasks = getTasksFromStorage(index);
+    const taskObject = { 
+        text: taskText, 
+        completed: false, 
+        timer: null 
+    };
+    
+    tasks.push(taskObject);
+    saveTasksToStorage(index, tasks);
+    
+    const li = createTaskElement(taskObject, index, taskLists[index]);
+    taskLists[index].appendChild(li);
+    
+    checkIfListEmpty(taskLists[index]);
+    input.value = "";
+    
+    // Also add to home if not home
+    if (index !== 0) {
+        const homeTasks = getTasksFromStorage(0);
+        homeTasks.push(taskObject);
+        saveTasksToStorage(0, homeTasks);
+        
+        const homeLi = createTaskElement(taskObject, 0, homeTaskList);
+        homeTaskList.appendChild(homeLi);
+        checkIfListEmpty(homeTaskList);
+    }
+}
+
+// Create task element
+function createTaskElement(taskObject, index, currentList) {
+    const li = document.createElement("li");
+    li.classList.add("listed-list-li");
+    
+    // Checkbox
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = taskObject.completed;
+    
+    // Task text
+    const textNode = document.createTextNode(taskObject.text);
+    
+    // Delete button
+    const deleteBtn = document.createElement("button");
+    deleteBtn.textContent = "Delete";
+    
+    // Timer elements
+    const timerContainer = document.createElement("div");
+    timerContainer.classList.add("styleClock");
+    
+    const timerInput = document.createElement("input");
+    timerInput.type = "datetime-local";
+    
+    const timerClock = document.createElement("span");
+    timerClock.textContent = "⏳ Timer not set";
+    
+    // Set timer if exists
+    if (taskObject.timer) {
+        timerInput.value = taskObject.timer;
+        updateTimerDisplay(timerClock, timerInput.value);
+    }
+    
+    // Timer change handler
+    timerInput.addEventListener("change", () => {
+        taskObject.timer = timerInput.value;
+        updateTaskInStorage(index, taskObject);
+        
+        if (timerInput.value) {
+            updateTimerDisplay(timerClock, timerInput.value);
+        } else {
+            timerClock.textContent = "⏳ Timer not set";
+            timerClock.style.color = "";
+        }
+    });
+    
+    // Checkbox handler
+    checkbox.addEventListener("change", () => {
+        taskObject.completed = checkbox.checked;
+        updateTaskInStorage(index, taskObject);
+        
+        if (checkbox.checked) {
+            showToast("Task completed!");
+            completedContainer.appendChild(li);
+            li.style.textDecoration = "line-through";
+        } else {
+            currentList.appendChild(li);
+            li.style.textDecoration = "none";
+        }
+    });
+    
+    // Delete button handler
+    deleteBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        taskToDelete = { li, taskObject, index, currentList };
+        openModal();
+    });
+    
+    // Assemble elements
+    timerContainer.appendChild(timerInput);
+    timerContainer.appendChild(timerClock);
+    
+    li.appendChild(checkbox);
+    li.appendChild(textNode);
+    li.appendChild(deleteBtn);
+    li.appendChild(timerContainer);
+    
+    // Style if completed
+    if (taskObject.completed) {
         li.style.textDecoration = "line-through";
-      }
-      currentul.appendChild(li);
+        completedContainer.appendChild(li);
+    }
+    
+    return li;
+}
 
-      // Duplicate task into home (index 0)
-      if (index !== 0) {
-        let homeLi = createTaskElement(task, index, homeUl);
-        let homeCheckbox = homeLi.querySelector("input[type='checkbox']");
-        if (task.completed) {
-          homeCheckbox.checked = true;
-          homeLi.style.textDecoration = "line-through";
-        }
-        homeUl.appendChild(homeLi);
-      }
+// Timer functions
+function updateTimerDisplay(clockElement, targetTimeString) {
+    const targetTime = new Date(targetTimeString).getTime();
+    const now = new Date().getTime();
+    const distance = targetTime - now;
+    
+    if (distance <= 0) {
+        clockElement.textContent = "⏰ Time's up!";
+        clockElement.style.color = "red";
+        return;
+    }
+    
+    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+    
+    clockElement.textContent = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    clockElement.style.color = "";
+}
+
+// Modal functions
+function openModal() {
+    modal.classList.add("active");
+}
+
+function closeModal() {
+    modal.classList.remove("active");
+}
+
+function confirmDelete() {
+    if (!taskToDelete) return;
+    
+    const { li, taskObject, index, currentList } = taskToDelete;
+    currentList.removeChild(li);
+    
+    // Remove from storage
+    const tasks = getTasksFromStorage(index);
+    const updatedTasks = tasks.filter(t => t.text !== taskObject.text);
+    saveTasksToStorage(index, updatedTasks);
+    
+    // Also remove from home if not home
+    if (index !== 0) {
+        const homeTasks = getTasksFromStorage(0);
+        const updatedHomeTasks = homeTasks.filter(t => t.text !== taskObject.text);
+        saveTasksToStorage(0, updatedHomeTasks);
+        
+        // Remove from home UI
+        const homeItems = homeTaskList.querySelectorAll("li");
+        homeItems.forEach(item => {
+            if (item.textContent.includes(taskObject.text)) {
+                homeTaskList.removeChild(item);
+            }
+        });
+    }
+    
+    closeModal();
+    checkIfListEmpty(currentList);
+    checkIfListEmpty(homeTaskList);
+    taskToDelete = null;
+}
+
+// Storage functions
+function getTasksFromStorage(index) {
+    return JSON.parse(localStorage.getItem(`tasks-${index}`)) || [];
+}
+
+function saveTasksToStorage(index, tasks) {
+    localStorage.setItem(`tasks-${index}`, JSON.stringify(tasks));
+}
+
+function updateTaskInStorage(index, updatedTask) {
+    const tasks = getTasksFromStorage(index);
+    const updatedTasks = tasks.map(t => t.text === updatedTask.text ? updatedTask : t);
+    saveTasksToStorage(index, updatedTasks);
+}
+
+// Load tasks from storage
+function loadTasks() {
+    taskLists.forEach((list, index) => {
+        const tasks = getTasksFromStorage(index);
+        tasks.forEach(task => {
+            const li = createTaskElement(task, index, list);
+            list.appendChild(li);
+        });
+        checkIfListEmpty(list);
     });
-    checkIfListEmpty(currentul);
-  });
-
-  checkIfListEmpty(homeUl);
 }
 
+// Search functionality
+function handleSearch(e) {
+    const query = e.target.value.trim().toLowerCase();
+    searchResults.innerHTML = "";
+    
+    if (!query) {
+        searchResults.classList.remove("has-results");
+        return;
+    }
+    
+    let hasResults = false;
+    
+    taskLists.forEach((_, index) => {
+        const tasks = getTasksFromStorage(index);
+        tasks.forEach(task => {
+            if (task.text.toLowerCase().includes(query)) {
+                hasResults = true;
+                const li = document.createElement("li");
+                li.textContent = `List ${index + 1}: ${task.text}`;
+                if (task.completed) {
+                    li.style.textDecoration = "line-through";
+                    li.style.color = "gray";
+                }
+                searchResults.appendChild(li);
+            }
+        });
+    });
+    
+    if (hasResults) {
+        searchResults.classList.add("has-results");
+    } else {
+        searchResults.classList.remove("has-results");
+    }
+}
+
+// Empty list checks
+function checkIfListEmpty(listElement) {
+    if (listElement.children.length === 0) {
+        const emptyMessage = document.createElement("div");
+        emptyMessage.textContent = "No tasks yet. Add one!";
+        emptyMessage.classList.add("empty-message");
+        listElement.appendChild(emptyMessage);
+    } else {
+        const emptyMessage = listElement.querySelector(".empty-message");
+        if (emptyMessage) emptyMessage.remove();
+    }
+}
+
+function checkAllListsEmpty() {
+    taskLists.forEach(list => checkIfListEmpty(list));
+    checkIfListEmpty(completedContainer);
+}
+
+// Toast notification
 function showToast(message) {
-  let toast = document.createElement("div");
-  toast.className = "toast";
-  toast.textContent = message;
-  document.body.appendChild(toast);
-
-  // Show the toast
-  setTimeout(() => {
-    toast.classList.add("show");
-  }, 100);
-
-  // Hide after 3 seconds and remove from DOM
-  setTimeout(() => {
-    toast.classList.remove("show");
+    const toast = document.createElement("div");
+    toast.className = "toast";
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.classList.add("show"), 100);
     setTimeout(() => {
-      toast.remove();
-    }, 500);
-  }, 3000);
+        toast.classList.remove("show");
+        setTimeout(() => toast.remove(), 500);
+    }, 3000);
 }
 
-// Close modal if clicking outside modal content
-window.onclick = function (event) {
-  if (event.target === modal) {
-    modal.style.display = "none";
-  }
-};
-
-// Load existing tasks
-loadTasks();
-
-// Render task buttons
-renderTask();
+// Initialize the app
+init();
